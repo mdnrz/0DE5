@@ -24,7 +24,6 @@
 .set READBUFLEN, 16384
 .set ITOABUFLEN, 12
 .set NEWLINE, '\n'
-.set CARRIAGE_RETURN, '\r'
 .set CR, '\r'
 .set TAB, '\t'
 .set SPACE, ' '
@@ -210,7 +209,7 @@ count_in_file:
 
     cmp $0, %rax                        # No bytes read?
     je  .L_done_with_file
-    mov $1, %r14
+    mov $1, %r14                        # to count visual lines
 
     xor %rcx, %rcx
 .L_next_byte_in_buf:
@@ -270,6 +269,10 @@ count_in_file:
 .L_done_with_file:
     # Done with this file. The char count is already in r9.
     # Put the word and line counts in their return locations.
+    cmp $NEWLINE, %dl
+    jne .L_dont_decrease
+    dec %r14
+.L_dont_decrease:
     mov %r15, %rdx
     mov %r14, %rax
 

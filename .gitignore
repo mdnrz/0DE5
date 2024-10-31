@@ -1,4 +1,4 @@
 *.elf
 *.o
 tags
-build
+bin
