@@ -1,0 +1,7 @@
+3423523 <- this is an integer
+Hello3432432 <- not an integer.
+My number is 07723252424 <- this is an integer.
+Take this sum: 22-44 <- not an integer
+Take this decimal: 22.4 <- not an integer
+Or this one: 234 + 5332 <- two integers here
+This final one is an integer too: 3253

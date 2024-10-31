@@ -27,6 +27,8 @@
 .set CR, '\r'
 .set TAB, '\t'
 .set SPACE, ' '
+.set DIGIT_ZERO, '0'
+.set DIGIT_NINE, '9'
 
 #---------------- DATA ----------------#
     .data
@@ -48,6 +50,15 @@ unix_style_label:
 
 style_flag: # 0: unix, 1: windows
     .space 1, 0x0 # default is unix
+
+integer_flag: # 0: false, 1: true
+    .space 1, 0x0
+
+total_integer_counter:
+    .space 8, 0x0
+
+file_integer_counter:
+    .space 8, 0x0
 
 buf_for_read:
     # leave space for terminating 0
@@ -112,6 +123,8 @@ _start:
     add  %rdx, %r14
     mov  %r9, %rdx
     add  %r9, %r15
+    mov file_integer_counter, %r11
+    add %r11, total_integer_counter
     mov  %r12, %rcx
     call print_counters
     movb $0, style_flag # reset the newline label
@@ -130,6 +143,7 @@ _start:
     mov  %r13, %rdi
     mov  %r14, %rsi
     mov  %r15, %rdx
+    mov  total_integer_counter, %r11
     lea  total_str, %rcx
     call print_counters
 
@@ -163,9 +177,10 @@ _start:
 # rdi     file descriptor representing an open file.
 #
 # Returns:
-# rax     line count
-# rdx     word count
-# r9      char count
+# rax                   line count
+# rdx                   word count
+# r9                    char count
+# file_integer_counter  int count
 count_in_file:
     # Save callee-saved registers.
     push %r12
@@ -193,6 +208,7 @@ count_in_file:
     xor %r9, %r9
     xor %r15, %r15
     xor %r14, %r14
+    movq $0, file_integer_counter
     lea buf_for_read, %r13
     mov $IN_WHITESPACE, %r12
 
@@ -233,13 +249,20 @@ count_in_file:
     # counter.
     inc %r15
     mov $IN_WORD, %r12
+    # start of the word: if it's a digit, set the digit flag
+    cmp $DIGIT_ZERO, %dl
+    jb .L_done_with_this_byte
+    cmp $DIGIT_NINE, %dl
+    ja .L_done_with_this_byte
+    movb $1, integer_flag
+
     jmp .L_done_with_this_byte
 
 .L_seen_newline:
     # Increment the line counter and fall through.
     inc %r14
     dec %rcx
-    cmpb $CARRIAGE_RETURN, (%r13, %rcx, 1)
+    cmpb $CR, (%r13, %rcx, 1)
     jne .L_not_windows_style_newline
     movb $1, style_flag
 .L_not_windows_style_newline:
@@ -252,9 +275,22 @@ count_in_file:
     jmp .L_done_with_this_byte
 
 .L_end_current_word:
+    # if integer flag is set, increase the integer counter
+    cmpb $1, integer_flag
+    jne .L_not_integer
+    addq $1, file_integer_counter
+.L_not_integer:
     mov $IN_WHITESPACE, %r12
 
 .L_done_with_this_byte:
+    cmp $DIGIT_ZERO, %dl
+    jae .L_check_upper_limit
+    movb $0, integer_flag
+.L_check_upper_limit:
+    cmp $DIGIT_NINE, %dl
+    jbe .L_advance_read_pointer
+    movb $0, integer_flag
+.L_advance_read_pointer:
     # Advance read pointer and check if we haven't finished with the read
     # buffer yet.
     inc %rcx
@@ -317,13 +353,14 @@ print_cstring:
 # Print three counters with an optional name to stdout.
 #
 # Arguments:
-# rdi, rsi, rdx:   the counters
+# rdi, rsi, rdx, r11:   the counters
 # rcx:             address of the name C-string. If 0, no name is printed.
 #
 # Returns: void
 print_counters:
     push %r14
     push %r15
+    push %r11
     push %rdx
     push %rsi
     push %rdi
@@ -349,7 +386,7 @@ print_counters:
     lea  buf_for_itoa, %rdi
     call print_cstring
     inc %r15
-    cmp $3, %r15
+    cmp $4, %r15
     jl  .L_print_next_counter
 
     # If name address is not 0, print out the given null-terminated string
@@ -376,6 +413,7 @@ print_counters:
     pop  %rdi
     pop  %rsi
     pop  %rdx
+    pop  %r11
     pop  %r15
     pop  %r14
     ret
