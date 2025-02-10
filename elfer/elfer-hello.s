@@ -81,7 +81,7 @@ _start:
     movl $ev_val_current, (%r9)
 
     lea eh_idx_entry(%r8), %r9
-    movq $0x4000B0, (%r9)
+    movq $0x4000C0, (%r9)
 
     lea eh_idx_phoff(%r8), %r9
     movq $0x40, (%r9)
@@ -127,13 +127,14 @@ _start:
     movq $0x600000, (%r9)
 
     lea ph_idx_filesz(%r8), %r9
-    movq $0x1000, (%r9)
+    movq $0x0100, (%r9)
 
     lea ph_idx_memsz(%r8), %r9
-    movq $0x1000, (%r9)
+    movq $0x0100, (%r9)
 
     lea ph_idx_align(%r8), %r9
     movq $0x1000, (%r9)
+
     # write elf_header to the file
     mov %rax, %rdi
     lea elf_header, %rsi
@@ -150,6 +151,18 @@ _start:
     # write program header 2 to the file
     lea ph_array+p_header_size, %rsi
     mov $p_header_size, %rdx
+    mov $SYSCALL_WRITE, %rax
+    syscall
+
+    # write padding
+    lea padding_8b, %rsi
+    mov $8, %rdx
+    mov $SYSCALL_WRITE, %rax
+    syscall
+
+    # write padding
+    lea padding_8b, %rsi
+    mov $8, %rdx
     mov $SYSCALL_WRITE, %rax
     syscall
 
